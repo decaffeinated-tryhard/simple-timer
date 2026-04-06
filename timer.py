@@ -20,17 +20,24 @@ import time
 #     print (seconds)
     
 #timer works BARELY
+def update():
+    if is_running == True:
+        seconds = start_timer - int(time.time())
+
 
 is_running=False
 def start_timer():
     is_running=True
     start_time= int(time.time())
-    
+    update()
+
+
+
 # #tk boilerplate
 root = tk.Tk()
 label-tk.Label(root,text=seconds)
 
 root.title("timer")
-button = tk.Button(root, text="start", width=25, command=root.destroy)
+button = tk.Button(root, text="start", width=25, command=start_timer())
 button.pack()
 root.mainloop()
