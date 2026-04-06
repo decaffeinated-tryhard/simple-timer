@@ -9,27 +9,28 @@ import time
 #nothing to worry about rn but definitely in future
 #anyways
 
-start_sec = 0
-new_sec = 0
-seconds = 0
+# start_sec = 0
+# new_sec = 0
+# seconds = 0
+# start_sec = int(time.time())
+# for i in range (100000000):
 
-
-
-    
-start_sec = int(time.time())
-for i in range (100000000):
-
-    new_sec= int(time.time())
-    seconds = new_sec - start_sec 
-    print (seconds)
+#     new_sec= int(time.time())
+#     seconds = new_sec - start_sec 
+#     print (seconds)
     
 #timer works BARELY
 
-
-
+is_running=False
+def start_timer():
+    is_running=True
+    start_time= int(time.time())
+    
 # #tk boilerplate
-# root = tk.Tk()
-# root.title("timer")
-# button = tk.Button(root, text="start", width=25, command=root.destroy)
-# button.pack()
-# root.mainloop()
+root = tk.Tk()
+label-tk.Label(root,text=seconds)
+
+root.title("timer")
+button = tk.Button(root, text="start", width=25, command=root.destroy)
+button.pack()
+root.mainloop()
