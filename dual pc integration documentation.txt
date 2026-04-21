@@ -1,0 +1,311 @@
+# 🖥️ Dual-PC Integrated Setup Documentation
+
+## 🔷 Overview
+
+This setup connects two Linux machines into a unified working environment:
+
+* **Main PC (harch)** → Primary workstation (runs Ollama, Docker, etc.)
+* **Second PC (archtwo)** → Storage + auxiliary system
+
+The system provides:
+
+* Remote filesystem mounting (like a NAS)
+* Reverse SSH connectivity (bypasses router restrictions)
+* Persistent connectivity across reboots
+* Zero router configuration required
+
+---
+
+## 🔷 System Architecture
+
+### Core Flow:
+
+Second PC → (Reverse SSH Tunnel) → Main PC
+Main PC → (SSHFS) → Second PC filesystem
+
+```text
+archtwo ──(autossh reverse tunnel)──> harch:2222
+harch ──(sshfs mount)──────────────> archtwo:/home/h
+```
+
+---
+
+## 🔷 Components Used
+
+* `ssh` → secure connection
+* `autossh` → persistent reverse tunnel
+* `sshfs` → filesystem over SSH
+* `systemd (user)` → auto-start tunnel
+* custom bash script → auto-mount + retry logic
+
+---
+
+## 🔷 Network Setup
+
+### Main PC
+
+* Static IP: `192.168.1.67`
+
+### Important Note
+
+All services depend on this IP (currently).
+If IP changes → system breaks unless updated.
+
+---
+
+## 🔷 Reverse SSH Tunnel (Second PC)
+
+### Purpose
+
+Allows Main PC to access Second PC even when direct connection fails.
+
+---
+
+### Service File Location
+
+```bash
+~/.config/systemd/user/reverse-ssh.service
+```
+
+---
+
+### Service Config
+
+```ini
+[Unit]
+Description=Reverse SSH Tunnel to Main PC
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/bin/autossh -M 0 -N -R 2222:localhost:22 h@192.168.1.67
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+```
+
+---
+
+### Commands
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable reverse-ssh.service
+systemctl --user start reverse-ssh.service
+```
+
+---
+
+### Verification
+
+On Main PC:
+
+```bash
+ssh -p 2222 h@localhost
+```
+
+If this works → tunnel is active.
+
+---
+
+## 🔷 Remote Filesystem Mount (Main PC)
+
+### Mount Point
+
+```bash
+~/remotemount
+```
+
+---
+
+### Mount Script
+
+```bash
+~/.local/bin/mount_netdrive.sh
+```
+
+---
+
+### Script Logic
+
+* Waits for SSH tunnel
+* Mounts remote filesystem
+* Detects broken mounts
+* Reconnects automatically
+
+---
+
+### Example Script
+
+```bash
+#!/bin/bash
+
+MOUNT_POINT="/home/h/remotemount"
+REMOTE="h@127.0.0.1:/home/h"
+PORT=2222
+
+# wait for tunnel
+until ssh -p $PORT h@127.0.0.1 "exit" 2>/dev/null; do
+    sleep 2
+done
+
+while true; do
+    if ! ls "$MOUNT_POINT" >/dev/null 2>&1; then
+        fusermount -uz "$MOUNT_POINT" 2>/dev/null
+
+        sshfs -p $PORT $REMOTE $MOUNT_POINT \
+            -o reconnect,ServerAliveInterval=15,ServerAliveCountMax=3,IdentityFile=/home/h/.ssh/id_ed25519
+    fi
+
+    sleep 30
+done
+```
+
+---
+
+### Run Manually
+
+```bash
+~/scripts/mount_netdrive.sh
+```
+
+---
+
+## 🔷 Key Problems Encountered (and Solutions)
+
+### 1. ❌ SSH tunnel not working
+
+✔ Fixed by:
+
+* ensuring correct IP
+* fixing systemd service on correct machine
+
+---
+
+### 2. ❌ “empty mount but huge size”
+
+✔ Cause:
+
+* broken/stale FUSE mount
+
+✔ Fix:
+
+```bash
+fusermount -uz ~/netdrive
+```
+
+---
+
+### 3. ❌ mounting wrong system
+
+✔ Cause:
+
+* SSH confusion (wrong machine context)
+
+✔ Fix:
+
+```bash
+hostname
+```
+
+---
+
+### 4. ❌ systemd mount failure
+
+✔ Cause:
+
+* incorrect mount unit naming
+
+✔ Fix:
+
+* abandoned systemd mount approach
+* replaced with script-based mounting
+
+---
+
+### 5. ❌ IP changes breaking everything
+
+✔ Fix:
+
+* set static IP on main PC
+
+---
+
+## 🔷 Current Workflow
+
+1. Boot both PCs
+2. Second PC starts reverse SSH automatically
+3. On Main PC:
+
+   ```bash
+   run mount script
+   ```
+4. Access files via:
+
+   ```bash
+   ~/remotemount
+   ```
+
+---
+
+## 🔷 Future Improvements
+
+### Recommended Upgrades
+
+* Replace IP with hostname (`.local`)
+* Add auto-start for mount script
+* Add logging
+* Add backup sync system
+* Monitor mount health
+
+---
+
+## 🔷 Mental Model
+
+This system behaves like:
+
+> A lightweight distributed storage system using SSH as transport
+
+---
+
+## 🔷 Recovery Checklist (if everything breaks)
+
+1. Check network:
+
+   ```bash
+   ping 192.168.1.67
+   ```
+
+2. Check tunnel:
+
+   ```bash
+   ssh -p 2222 h@localhost
+   ```
+
+3. Restart tunnel:
+
+   ```bash
+   systemctl --user restart reverse-ssh.service
+   ```
+
+4. Fix mount:
+
+   ```bash
+   fusermount -uz ~/remotemount
+   ```
+
+5. Re-run script
+
+---
+
+## 🔷 Final Note
+
+This system is:
+
+* Not fragile
+* Not perfect
+* But fully understandable and recoverable
+
+That’s what makes it powerful.g (like a NAS)

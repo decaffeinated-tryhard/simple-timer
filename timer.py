@@ -29,9 +29,7 @@ def update():
         global cur_time
         cur_time=int(time.time())
         seconds = start_time - cur_time
-        print (is_running)
-        print(start_time)
-        print(cur_time)
+
 
 is_running=False
 
